@@ -4,10 +4,16 @@ use tonic::{metadata::MetadataValue, transport::Channel, Request};
 use alluxio::grpc::block::block_worker_client::BlockWorkerClient;
 use alluxio::grpc::block::ReadRequest;
 
+use alluxio::grpc::sasl::sasl_authentication_service_client::SaslAuthenticationServiceClient;
+use alluxio::grpc::sasl::{SaslMessage,ChannelAuthenticationScheme, SaslMessageType};
+
 pub mod alluxio {
     pub mod grpc {
         pub mod block {
             tonic::include_proto!("alluxio.grpc.block");
+        }
+        pub mod sasl {
+            tonic::include_proto!("alluxio.grpc.sasl");
         }
     }
     pub mod proto {
@@ -19,6 +25,32 @@ pub mod alluxio {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let auth_channel = Channel::from_static("http://[::1]:29999").connect().await?;
+
+    let token: MetadataValue<_> = "af28ed5a-dca6-11ec-9d64-0242ac120002".parse()?;
+    let mut auth_client = SaslAuthenticationServiceClient::with_interceptor(auth_channel, move |mut req: Request<()>| {
+        req.metadata_mut().insert("channel-id", token.clone());
+        Ok(req)
+    });
+    let mut sasl_messages = vec![];
+    sasl_messages.push(SaslMessage{
+        authentication_scheme: Some(ChannelAuthenticationScheme::Simple as i32),
+        channel_ref: None,
+        client_id: Some(String::from("af28ed5a-dca6-11ec-9d64-0242ac120002")),
+        message: Some(String::from("beinan\0beinan\0beinan").as_bytes().to_vec()),
+        message_type: Some(SaslMessageType::Challenge as i32)
+    });
+    let auth_request = Request::new(stream::iter(sasl_messages));
+    let response = auth_client
+        .authenticate(auth_request)
+        .await?;
+    println!("Auth Response {:?}", response);
+    let mut stream = response.into_inner();
+    while let Ok(Some(r)) = stream.message().await {
+        println!("auth response streaming = {:?}", r);
+    }
+
+
     let channel = Channel::from_static("http://[::1]:29999").connect().await?;
     let token: MetadataValue<_> = "af28ed5a-dca6-11ec-9d64-0242ac120002".parse()?;
     let mut client = BlockWorkerClient::with_interceptor(channel, move |mut req: Request<()>| {
