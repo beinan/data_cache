@@ -13,6 +13,10 @@ use alluxio::grpc::file::{CreateFilePOptions, CreateFilePRequest};
 use alluxio::grpc::sasl::sasl_authentication_service_client::SaslAuthenticationServiceClient;
 use alluxio::grpc::sasl::{SaslMessage,ChannelAuthenticationScheme, SaslMessageType};
 
+use settings::Settings;
+
+mod settings;
+
 pub mod alluxio {
     pub mod grpc {
         tonic::include_proto!("alluxio.grpc");
@@ -44,6 +48,9 @@ pub mod alluxio {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let settings = Settings::new();
+    println!("{:?}", settings);
+
     let auth_channel = Channel::from_static("http://[::1]:29999").connect().await?;
 
     let token: MetadataValue<_> = "af28ed5a-dca6-11ec-9d64-0242ac120002".parse()?;

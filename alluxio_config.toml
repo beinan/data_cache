@@ -1,0 +1,2 @@
+debug = true
+master = "http://[::1]:19999"
