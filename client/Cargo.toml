@@ -1,0 +1,16 @@
+[package]
+name = "alluxio-client"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]] # Bin to run the data cache gRPC client
+name = "alluxio-client-cli"
+path = "src/client_main.rs"
+
+[lib]
+name = "alluxio_client"
+crate-type = ["cdylib"]
+path = "src/client_lib.rs"
+
+[dependencies]
+alluxio-common = { path = "../common" }

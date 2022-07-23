@@ -1,0 +1,9 @@
+[package]
+name = "alluxio-worker"
+version = "0.1.0"
+edition = "2021"
+
+
+[[bin]] # Bin to run the data cache gRPC worker
+name = "alluxio-worker"
+path = "src/worker/worker.rs"
