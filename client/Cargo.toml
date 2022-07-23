@@ -14,3 +14,4 @@ path = "src/client_lib.rs"
 
 [dependencies]
 alluxio-common = { path = "../common" }
+alluxio-grpc = { path = "../grpc" }

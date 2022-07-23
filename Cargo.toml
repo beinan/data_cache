@@ -3,6 +3,7 @@ members = [
     "common",
     "worker",
     "client",
+    "grpc",
 ]
 
 
