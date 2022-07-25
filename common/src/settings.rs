@@ -5,8 +5,8 @@ use std::env;
 #[derive(Debug, Deserialize)]
 #[allow(unused)]
 pub struct Settings {
-    debug: bool,
-    master: String,
+    pub debug: bool,
+    pub master: String,
 }
 
 impl Settings {

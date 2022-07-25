@@ -10,6 +10,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         "proto/shared_acl.proto"];
     tonic_build::configure()
         .build_server(false)
+        .out_dir("src/gen")
         .compile(
             proto_files,
             &["proto/."],

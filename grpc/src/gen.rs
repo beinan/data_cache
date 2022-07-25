@@ -1,8 +1,4 @@
-pub mod gen;
 
-pub mod auth;
-pub mod file_system_master;
-pub mod grpc_client;
 
 pub mod grpc {
     tonic::include_proto!("alluxio.grpc");
@@ -30,9 +26,4 @@ pub mod proto {
         tonic::include_proto!("alluxio.proto.shared");
     }
 }
-
-
-
-
-
 
