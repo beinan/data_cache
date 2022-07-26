@@ -2,8 +2,10 @@ use structopt::StructOpt;
 
 use alluxio_grpc::grpc_client::Client;
 use crate::cmds::ls::ListOptions;
+use crate::cmds::location::LocationOptions;
 
 mod ls;
+mod location;
 
 #[derive(StructOpt, Debug)]
 #[structopt(name = "alluxio")]
@@ -24,13 +26,14 @@ pub enum Opt {
 pub enum FsCommand {
     #[structopt(name = "ls")]
     List (ListOptions),
-    Location,
+    Location (LocationOptions),
 }
 
 impl Opt {
     pub async fn execute(&self, client : Client) -> Result<String, String> {
         match self {
             Opt::FS(FsCommand::List(options)) => crate::cmds::ls::ls(client, options).await,
+            Opt::FS(FsCommand::Location(options)) => crate::cmds::location::location(client, options).await,
             _ => Err(String::from("Unimplemented cmds"))
         }
     }

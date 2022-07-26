@@ -21,7 +21,6 @@ struct FileRow {
 }
 
 pub async fn ls(client : Client, options: &ListOptions) -> Result<String, String> {
-    println!("List Status start");
     match client.master_client().unwrap().listStatus(String::from(options.path.clone())).await {
         Ok(fileInfos) => {
             // for file in fileInfos {
