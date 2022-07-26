@@ -20,7 +20,7 @@ async fn main() -> Result<(), String> {
 async fn ls (client : Client) -> Result<String, String> {
     println!("List Status start");
     match client.master_client().unwrap().listStatus(String::from("/")).await {
-        Ok(str) => Ok(str),
+        Ok(vec) => Ok(String::from("ok")),
         Err(err) => {
             println!("List status error {:?}", err.to_string());
             Err(err.to_string())
