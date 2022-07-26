@@ -1,29 +1,23 @@
 use std::fmt::Error;
-use alluxio_common::settings::Settings;
 
+use structopt::StructOpt;
+
+use alluxio_common::settings::Settings;
 use alluxio_grpc::grpc_client::Client;
+
+mod cmds;
+
 
 #[tokio::main]
 async fn main() -> Result<(), String> {
+    let cmd = cmds::Opt::from_args();
     match Settings::new() {
         Ok(settings) => {
-            match Client::connect_with_simple_auth(settings.master, ls).await {
+            match Client::connect_with_simple_auth(settings.master, |client: Client| cmd.execute(client)).await {
                 Ok(result) => Ok(()),
                 Err(err) => Err(err)
             }
-
         },
         Err(configError) => Err(configError.to_string()),
-    }
-}
-
-async fn ls (client : Client) -> Result<String, String> {
-    println!("List Status start");
-    match client.master_client().unwrap().listStatus(String::from("/")).await {
-        Ok(vec) => Ok(String::from("ok")),
-        Err(err) => {
-            println!("List status error {:?}", err.to_string());
-            Err(err.to_string())
-        }
     }
 }
