@@ -17,4 +17,5 @@ alluxio-common = { path = "../common" }
 alluxio-grpc = { path = "../grpc" }
 
 structopt = "0.3"
+tabled = "0.8.0"
 tokio = { version = "1.0", features = ["rt-multi-thread", "macros", "sync", "time"] }
