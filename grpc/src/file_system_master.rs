@@ -40,7 +40,7 @@ impl MasterClient {
     }
     pub async fn listStatus(&mut self, path : String) -> Result<Vec<FileInfo>, Box<dyn std::error::Error>> {
         let request = ListStatusPRequest {
-            path: Some(String::from("/")),
+            path: Some(path),
             options: Some(ListStatusPOptions {
                 load_direct_children: Some(true),
                 load_metadata_type: None,
