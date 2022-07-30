@@ -1,27 +1,22 @@
-use futures_util::SinkExt;
 use futures::Future;
+use futures_util::SinkExt;
 use std::{thread, time};
 use tokio::sync::mpsc;
-use tonic::{Request, transport::Channel};
 use tokio_stream::wrappers::ReceiverStream;
-use tonic::service::Interceptor;
 use tonic::service::interceptor::InterceptedService;
+use tonic::service::Interceptor;
+use tonic::{transport::Channel, Request};
 
-
+use crate::alluxio::grpc::file::file_system_master_client_service_client::FileSystemMasterClientServiceClient;
+use crate::alluxio::grpc::file::{ListStatusPOptions, ListStatusPRequest};
+use crate::alluxio::grpc::sasl::sasl_authentication_service_client::SaslAuthenticationServiceClient;
+use crate::alluxio::grpc::sasl::{ChannelAuthenticationScheme, SaslMessage, SaslMessageType};
 use crate::auth::{AuthClient, AuthInterceptor};
 use crate::file_system_master::MasterClient;
 
-use crate::grpc::file::file_system_master_client_service_client::FileSystemMasterClientServiceClient;
-
-use crate::grpc::sasl::{ChannelAuthenticationScheme, SaslMessage, SaslMessageType};
-use crate::grpc::sasl::sasl_authentication_service_client::SaslAuthenticationServiceClient;
-
-use crate::grpc::file::{ListStatusPRequest, ListStatusPOptions};
-
-use uuid::Uuid;
-use tonic::metadata::{MetadataValue, AsciiMetadataValue, Ascii};
+use tonic::metadata::{Ascii, AsciiMetadataValue, MetadataValue};
 use tonic::transport::Error;
-
+use uuid::Uuid;
 
 #[derive(Debug)]
 pub struct Client {
@@ -36,28 +31,29 @@ impl Client {
         Fut: Future<Output = T>,
     {
         match Channel::from_shared(server_addr).unwrap().connect().await {
-            Ok(channel) =>  {
+            Ok(channel) => {
                 let interceptor = AuthInterceptor::new();
-                let client = Client {channel, interceptor};
+                let client = Client {
+                    channel,
+                    interceptor,
+                };
                 let (mut tx, mut rx) = mpsc::channel(4);
                 let mut sasl_client = client.sasl_client().unwrap();
                 let mut handler = tokio::spawn(async move {
                     sasl_client.sendAuthRequest(tx).await;
                 });
-                let sasl= rx.recv().await;
+                let sasl = rx.recv().await;
                 let result = f(client);
 
                 //handler.join().expect("The auth thread has panicked");
                 return Ok(result.await);
             }
-            Err(err) => Err(err.to_string())
+            Err(err) => Err(err.to_string()),
         }
-
     }
 
     pub fn sasl_client(&self) -> Result<AuthClient, &'static str> {
-        return Ok(AuthClient::create(
-            self.channel.clone(), self.interceptor.clone()).unwrap());
+        return Ok(AuthClient::create(self.channel.clone(), self.interceptor.clone()).unwrap());
     }
 
     pub fn master_client(&self) -> Result<MasterClient, &'static str> {

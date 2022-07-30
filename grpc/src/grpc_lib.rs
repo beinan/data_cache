@@ -1,38 +1,32 @@
-pub mod gen;
-
 pub mod auth;
 pub mod file_system_master;
 pub mod grpc_client;
 
-pub mod grpc {
-    tonic::include_proto!("alluxio.grpc");
-    pub mod block {
-        tonic::include_proto!("alluxio.grpc.block");
+pub mod alluxio {
+    pub mod grpc {
+        include!("gen/alluxio.grpc.rs");
+        pub mod block {
+            include!("gen/alluxio.grpc.block.rs");
+        }
+        pub mod sasl {
+            include!("gen/alluxio.grpc.sasl.rs");
+        }
+        pub mod file {
+            include!("gen/alluxio.grpc.file.rs");
+        }
+        pub mod fscommon {
+            include!("gen/alluxio.grpc.fscommon.rs");
+        }
     }
-    pub mod sasl {
-        tonic::include_proto!("alluxio.grpc.sasl");
-    }
-    pub mod file {
-        tonic::include_proto!("alluxio.grpc.file");
-    }
-    pub mod fscommon {
-        tonic::include_proto!("alluxio.grpc.fscommon");
+    pub mod proto {
+        pub mod dataserver {
+            include!("gen/alluxio.proto.dataserver.rs");
+        }
+        pub mod journal {
+            include!("gen/alluxio.proto.journal.rs");
+        }
+        pub mod shared {
+            include!("gen/alluxio.proto.shared.rs");
+        }
     }
 }
-pub mod proto {
-    pub mod dataserver {
-        tonic::include_proto!("alluxio.proto.dataserver");
-    }
-    pub mod journal {
-        tonic::include_proto!("alluxio.proto.journal");
-    }
-    pub mod shared {
-        tonic::include_proto!("alluxio.proto.shared");
-    }
-}
-
-
-
-
-
-
