@@ -1,10 +1,2 @@
 [workspace]
-members = [
-    "common",
-    "worker",
-    "client",
-    "grpc",
-]
-
-
-
+members = ["common", "worker", "client", "grpc"]

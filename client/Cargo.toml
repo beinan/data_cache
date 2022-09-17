@@ -1,10 +1,11 @@
 [package]
-name = "alluxio-client"
+name = "alluxio_client"
 version = "0.1.0"
 edition = "2021"
 
-[[bin]] # Bin to run the data cache gRPC client
-name = "alluxio-client-cli"
+[[bin]]
+# Bin to run the data cache gRPC client
+name = "alluxio-client"
 path = "src/client_main.rs"
 
 [lib]
@@ -13,9 +14,19 @@ crate-type = ["cdylib"]
 path = "src/client_lib.rs"
 
 [dependencies]
-alluxio-common = { path = "../common" }
-alluxio-grpc = { path = "../grpc" }
+alluxio_common = { path = "../common" }
+alluxio_grpc = { path = "../grpc" }
 
+async-trait = "0.1.57"
+futures = { version = "0.3", default-features = false, features = ["alloc"] }
+futures-core = "0.3"
+futures-util = "0.3"
+tonic = "0.7"
 structopt = "0.3"
 tabled = "0.8.0"
-tokio = { version = "1.0", features = ["rt-multi-thread", "macros", "sync", "time"] }
+tokio = { version = "1.0", features = [
+    "rt-multi-thread",
+    "macros",
+    "sync",
+    "time",
+] }

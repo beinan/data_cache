@@ -1,18 +1,22 @@
 use structopt::StructOpt;
 
-use alluxio_grpc::grpc_client::Client;
-use crate::cmds::ls::ListOptions;
-use crate::cmds::location::LocationOptions;
-
-mod ls;
+mod cat;
 mod location;
+mod ls;
+mod stat;
+
+use alluxio_grpc::grpc_client::Client;
+use cat::{cat, CatOptions};
+use location::{location, LocationOptions};
+use ls::{ls, ListOptions};
+use stat::{stat, StatOptions};
 
 #[derive(StructOpt, Debug)]
 #[structopt(name = "alluxio")]
 /// The native alluxio client
 pub enum Opt {
     /// File System Operations
-    FS (FsCommand),
+    FS(FsCommand),
     #[structopt(help = "prints the configured value for the given key")]
     GetConf {
         #[structopt(short)]
@@ -25,17 +29,23 @@ pub enum Opt {
 #[derive(StructOpt, Debug)]
 pub enum FsCommand {
     #[structopt(name = "ls")]
-    List (ListOptions),
-    Location (LocationOptions),
+    List(ListOptions),
+    #[structopt(name = "location")]
+    Location(LocationOptions),
+    #[structopt(name = "stat")]
+    Stat(StatOptions),
+    #[structopt(name = "cat")]
+    Cat(CatOptions),
 }
 
 impl Opt {
-    pub async fn execute(&self, client : Client) -> Result<String, String> {
+    pub async fn execute(&self, client: Client) -> Result<String, String> {
         match self {
-            Opt::FS(FsCommand::List(options)) => crate::cmds::ls::ls(client, options).await,
-            Opt::FS(FsCommand::Location(options)) => crate::cmds::location::location(client, options).await,
-            _ => Err(String::from("Unimplemented cmds"))
+            Opt::FS(FsCommand::List(options)) => ls(client, options).await,
+            Opt::FS(FsCommand::Location(options)) => location(client, options).await,
+            Opt::FS(FsCommand::Stat(options)) => stat(client, options).await,
+            Opt::FS(FsCommand::Cat(options)) => cat(client, options).await,
+            _ => Err(String::from("Unimplemented cmds")),
         }
     }
 }
-

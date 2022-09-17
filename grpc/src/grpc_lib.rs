@@ -1,5 +1,4 @@
 pub mod auth;
-pub mod file_system_master;
 pub mod grpc_client;
 
 pub mod alluxio {

@@ -1,11 +1,10 @@
-use std::fmt::Error;
-
 use structopt::StructOpt;
 
 use alluxio_common::settings::Settings;
-use lib::grpc_client::Client;
+use alluxio_grpc::grpc_client::Client;
 
 mod cmds;
+mod file;
 
 #[tokio::main]
 async fn main() -> Result<(), String> {
@@ -21,6 +20,6 @@ async fn main() -> Result<(), String> {
                 Err(err) => Err(err),
             }
         }
-        Err(configError) => Err(configError.to_string()),
+        Err(config_error) => Err(config_error.to_string()),
     }
 }

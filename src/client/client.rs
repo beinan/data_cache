@@ -77,7 +77,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         while let Ok(Some(r)) = stream.message().await {
             println!("RESPONSE streaming = {:?}", r);
         }
-
     }
 
     Ok(())
