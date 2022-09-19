@@ -1,5 +1,11 @@
 [workspace]
-members = ["common", "worker", "client", "grpc"]
+members = [
+    "common",
+    "worker",
+    "client",
+    "grpc",
+    "cache_jni/rust_lib",
+]
 
 [profile.release]
 debug = true

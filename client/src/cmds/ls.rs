@@ -1,5 +1,8 @@
-use alluxio_grpc::grpc_client::Client;
+use std::fs::File;
 use structopt::StructOpt;
+use alluxio_grpc::{grpc_client::Client, alluxio::grpc::file::FileInfo};
+
+
 
 use crate::file::alluxio_file_system;
 use tabled::{Table, Tabled};

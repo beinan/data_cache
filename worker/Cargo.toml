@@ -6,4 +6,4 @@ edition = "2021"
 
 [[bin]] # Bin to run the data cache gRPC worker
 name = "alluxio-worker"
-path = "src/worker/worker.rs"
+path = "src/worker_main.rs"
