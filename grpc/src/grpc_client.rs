@@ -11,12 +11,20 @@ pub struct Client {
 }
 
 impl Client {
-    pub async fn connect_with_simple_auth<F, Fut, T>(server_addr: String, f: F) -> Result<T, String>
+    pub async fn connect_with_simple_auth<F, Fut, T>(
+        server_addr: String,
+        server_port: i32,
+        f: F,
+    ) -> Result<T, String>
     where
         F: Fn(Client) -> Fut,
         Fut: Future<Output = T>,
     {
-        match Channel::from_shared(server_addr).unwrap().connect().await {
+        let address = format!("http://{}:{}", server_addr, server_port);
+        match Channel::from_static(Box::leak(address.into_boxed_str()))
+            .connect()
+            .await
+        {
             Ok(channel) => {
                 let interceptor = AuthInterceptor::new();
                 let client = Client {

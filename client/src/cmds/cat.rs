@@ -1,8 +1,9 @@
+use alluxio_common::exception::AlluxioException;
 use alluxio_grpc::grpc_client::Client;
 use structopt::StructOpt;
 
-use crate::file::alluxio_file_system;
-use tabled::{Table, Tabled};
+use crate::file::{self, alluxio_file_system};
+// use tabled::{Table, Tabled};
 
 #[derive(StructOpt, Debug)]
 pub struct CatOptions {
@@ -19,10 +20,10 @@ pub async fn cat(client: Client, options: &CatOptions) -> Result<String, String>
             match file_info {
                 Some(info) => {
                     if info.folder() {
-                        println!("File {} does not exit", options.path)
+                        println!("File {} does not exit", options.path);
                     } else {
-                        // TODO 完成file_system.open_file(options.path.clone());
-                        // file_system.open_file(options.path.clone());
+                        let files = file_system.open_file(options.path.clone()).await?;
+                        println!("{:?}", files);
                     }
                 }
                 None => println!("File {} does not exit", options.path),

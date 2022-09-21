@@ -1,3 +1,5 @@
+#![feature(async_closure)]
+
 use structopt::StructOpt;
 
 use alluxio_common::settings::Settings;
@@ -11,7 +13,7 @@ async fn main() -> Result<(), String> {
     let cmd = cmds::Opt::from_args();
     match Settings::new() {
         Ok(settings) => {
-            match Client::connect_with_simple_auth(settings.master, |client: Client| {
+            match Client::connect_with_simple_auth(settings.master, 19998, |client: Client| {
                 cmd.execute(client)
             })
             .await

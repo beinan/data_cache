@@ -1,2 +1,2 @@
 debug = true
-master = "http://localhost:19998"
+master = "localhost"
