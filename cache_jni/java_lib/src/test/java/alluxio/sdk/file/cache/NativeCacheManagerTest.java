@@ -13,11 +13,9 @@ import java.nio.charset.StandardCharsets;
  */
 public class NativeCacheManagerTest
 {
-    /**
-     * Rigorous Test :-)
-     */
+
     @Test
-    public void shouldAnswerWithTrue()
+    public void putAndGetTest()
     {
         NativeCacheManager manager = new NativeCacheManager();
         assertTrue(manager.init(128 * 1024 * 1024, 1024 * 1024, 16));
