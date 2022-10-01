@@ -15,7 +15,7 @@ impl Settings {
         let s = Config::builder()
             .add_source(File::with_name("alluxio_config"))
             .build()?;
-        println!("load settings: {:?}", s);
+        // println!("load settings: {:?}", s);
         s.try_deserialize()
     }
 }

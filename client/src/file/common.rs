@@ -5,21 +5,28 @@ use alluxio_common::exception::AlluxioException;
 use alluxio_common::settings::Settings;
 use alluxio_grpc::alluxio::grpc::block::block_worker_client::BlockWorkerClient;
 use alluxio_grpc::alluxio::grpc::block::ReadRequest;
-use alluxio_grpc::alluxio::grpc::file::{FileInfo, OpenFilePOptions};
+use alluxio_grpc::alluxio::grpc::file::{FileBlockInfo, FileInfo, OpenFilePOptions};
 use alluxio_grpc::grpc_client::Client;
 
 use async_trait::async_trait;
+use futures::sink::Buffer;
 use futures::stream;
 use tonic::Request;
 use tonic::{metadata::MetadataValue, transport::Channel};
 
-// Not Ready
+// WIP
+#[async_trait]
 trait FileInStream: InputStream + BoundedStream + PositionedReadable + Seekable {}
 
 // Not Ready
 #[async_trait]
-trait InputStream {
-    async fn read(&mut self, b: &mut Vec<u8>, off: i64, len: i64) -> Result<i64, AlluxioException>;
+pub trait InputStream {
+    async fn read(
+        &mut self,
+        b: &mut Cursor<Vec<u8>>,
+        off: i64,
+        len: i64,
+    ) -> Result<i64, AlluxioException>;
 }
 
 // Not Ready
@@ -144,15 +151,15 @@ trait Seekable {}
 // impl FileInStream for LocalCacheFileInStream {}
 
 // Not Ready
-pub struct AlluxioFileInStream<T, B>
+pub struct AlluxioFileInStream<'a, B>
 where
-    T: DataReader,
     B: BlockLocationPolicy,
 {
-    status: URIStatus,
-    options: InStreamOptions<B>,
+    status: &'a URIStatus,
+    file_info_map: HashMap<i64, &'a FileBlockInfo>,
+    options: &'a InStreamOptions<B>,
     block_store: BlockStoreClient,
-    context: FileSystemContext,
+    context: &'a FileSystemContext,
     passive_caching_enabled: bool,
     // Convenience values derived from mStatus, use these instead of querying mStatus.
     // Length of the file in bytes.
@@ -161,60 +168,88 @@ where
     // Underlying stream and associated bookkeeping.
     // Current offset in the file.
     position: i64,
-    // Underlying block stream, null if a position change has invalidated the previous stream.
-    block_in_stream: BlockInStream<T>,
-    // Cached block stream for the positioned read API.
-    cached_positioned_read_stream: BlockInStream<T>,
     // The last block id for which async cache was triggered.
-    last_block_id_cached: i64,
-    // A map of worker addresses to the most recent epoch time when client fails to read from it.
     failed_workers: HashMap<WorkerNetAddress, i64>,
 }
-impl<T, B> AlluxioFileInStream<T, B>
+impl<'a, B> AlluxioFileInStream<'a, B>
 where
-    T: DataReader,
     B: BlockLocationPolicy,
 {
-    // pub fn new(
-    //     options: InStreamOptions<B>,
-    //     context: FileSystemContext,
-    // ) -> AlluxioFileInStream<T, B> {
-    //     AlluxioFileInStream {
-    //         status: options.status,
-    //         options,
-    //         block_store: BlockStoreClient {}, // tmp
-    //         context,
-    //         passive_caching_enabled: false, //tmp
-    //         length: options.status.file_info.length(),
-    //         block_size: options.status.file_info.block_size_bytes(),
-    //         position: 0,
-    //         block_in_stream: BlockInStream::create(
-    //             context,
-    //             block_info,
-    //             data_source: WorkerNetAddress {"localhost".to_string()},
-    //             data_source_type: BlockInStreamSource::NODE_LOCAL,
-    //             options,
-    //         ),
-    //     }
-    // }
+    pub fn new(
+        options: &'a InStreamOptions<B>,
+        context: &'a FileSystemContext,
+    ) -> Result<AlluxioFileInStream<'a, B>, AlluxioException> {
+        let failed_workers: HashMap<WorkerNetAddress, i64> = HashMap::new();
+        let mut file_info_map: HashMap<i64, &'a FileBlockInfo> = HashMap::new();
+        let block_infos = &options.status.file_info.file_block_infos;
+        for file_block_info in block_infos {
+            match &file_block_info.block_info {
+                Some(block_info) => file_info_map.insert(block_info.block_id(), &file_block_info),
+                None => {
+                    return Err(AlluxioException::AccessControlException {
+                        message: "file block info get faild".to_string(),
+                    })
+                }
+            };
+        }
+        let instream = AlluxioFileInStream {
+            status: &options.status,
+            file_info_map,
+            options,
+            block_store: BlockStoreClient {}, // tmp
+            context,
+            passive_caching_enabled: false, //tmp
+            length: options.status.file_info.length(),
+            block_size: options.status.file_info.block_size_bytes(),
+            position: 0,
+            failed_workers,
+        };
+        Ok(instream)
+    }
+    fn create_block_instream(
+        &self,
+        block_info: &alluxio_grpc::alluxio::grpc::BlockInfo,
+    ) -> BlockInStream {
+        let data_source = WorkerNetAddress {
+            host: "localhost".to_string(),
+        };
+        let data_source_type = BlockInStreamSource::NODE_LOCAL;
+
+        BlockInStream::create(
+            &self.context,
+            block_info,
+            data_source,
+            data_source_type,
+            &self.options,
+        )
+    }
+    fn closeBlockInStream(&self) {}
 }
 
 // Not Ready
-impl<T, B> FileInStream for AlluxioFileInStream<T, B>
-where
-    T: DataReader,
-    B: BlockLocationPolicy,
-{
-}
+impl<'a, B> FileInStream for AlluxioFileInStream<'a, B> where B: BlockLocationPolicy {}
 
 // Not Ready
 #[async_trait]
-impl<T, B> InputStream for AlluxioFileInStream<T, B>
+impl<'a, B> InputStream for AlluxioFileInStream<'a, B>
 where
-    T: DataReader,
     B: BlockLocationPolicy,
 {
-    async fn read(&mut self, b: &mut Vec<u8>, off: i64, len: i64) -> Result<i64, AlluxioException> {
+    /**
+     * Reads up to len bytes of data from the input stream into the cursor.
+     *
+     * @param b the buffer into which the data is read
+     * @param off the start offset in the buffer at which the data is written
+     * @param len the maximum number of bytes to read
+     * @return the total number of bytes read into the buffer, or -1 if there is no more
+     *         data because the end of the stream has been reached
+     */
+    async fn read(
+        &mut self,
+        b: &mut Cursor<Vec<u8>>,
+        off: i64,
+        len: i64,
+    ) -> Result<i64, AlluxioException> {
         if len == 0 {
             return Ok(0);
         }
@@ -222,14 +257,17 @@ where
         if self.position == self.length {
             return Ok(-1);
         }
-
         let mut bytes_left = len;
         let mut current_offset = off;
         while bytes_left > 0 && self.position != self.length {
-            let bytes_read = self
-                .block_in_stream
-                .read(b, current_offset, bytes_left)
-                .await;
+            let index: usize = (self.position / self.block_size) as usize;
+            let block_id = self.status.file_info.block_ids.get(index).unwrap();
+            let file_block_info = self.file_info_map.get(block_id).unwrap();
+            let block_info = file_block_info.block_info.as_ref().unwrap();
+            let mut block_in_stream = self.create_block_instream(block_info);
+
+            let bytes_read = block_in_stream.read(b, current_offset, bytes_left).await?;
+
             if bytes_read > 0 {
                 bytes_left -= bytes_read;
                 current_offset += bytes_read;
@@ -241,66 +279,40 @@ where
 }
 
 // Not Ready
-impl<T, B> BoundedStream for AlluxioFileInStream<T, B>
-where
-    T: DataReader,
-    B: BlockLocationPolicy,
-{
-}
+impl<'a, B> BoundedStream for AlluxioFileInStream<'a, B> where B: BlockLocationPolicy {}
 
 // Not Ready
-impl<T, B> PositionedReadable for AlluxioFileInStream<T, B>
-where
-    T: DataReader,
-    B: BlockLocationPolicy,
-{
-}
+impl<'a, B> PositionedReadable for AlluxioFileInStream<'a, B> where B: BlockLocationPolicy {}
 
 // Not Ready
-impl<T, B> Seekable for AlluxioFileInStream<T, B>
-where
-    T: DataReader,
-    B: BlockLocationPolicy,
-{
-}
+impl<'a, B> Seekable for AlluxioFileInStream<'a, B> where B: BlockLocationPolicy {}
 
 struct BlockStoreClient {}
 
 // Not Ready
-struct BlockInStream<T>
-where
-    T: DataReader,
-{
-    // The size in bytes of the block.
-    length: i64,
-    // Current position of the stream, relative to the start of the block.
-    position: i64,
-    EOF: bool,
-    data_reader: T,
+struct BlockInStream {
+    block_id: i64,
     current_chunk: DefaultDataBuffer,
 }
-impl<T> BlockInStream<T>
-where
-    T: DataReader,
-{
+impl BlockInStream {
     pub fn create<B>(
-        context: FileSystemContext,
-        block_info: BlockInfo,
+        context: &FileSystemContext,
+        block_info: &alluxio_grpc::alluxio::grpc::BlockInfo,
         data_source: WorkerNetAddress,
         data_source_type: BlockInStreamSource,
-        options: InStreamOptions<B>,
-    ) -> BlockInStream<GrpcDataReader>
+        options: &InStreamOptions<B>,
+    ) -> BlockInStream
     where
         B: BlockLocationPolicy,
     {
-        let block_id = block_info.block_id;
-        let block_size = block_info.length;
+        let block_id = block_info.block_id.unwrap();
+        let block_size = block_info.length.unwrap();
         let block_in_stream = Self::create_grpc_block_in_stream(
             context,
             data_source,
             data_source_type,
-            block_id,
             block_size,
+            block_id,
             options,
         );
         return block_in_stream;
@@ -317,24 +329,45 @@ where
      * @return the {@link BlockInStream} created
      */
     fn create_grpc_block_in_stream<B>(
-        context: FileSystemContext,
+        context: &FileSystemContext,
         address: WorkerNetAddress,
         block_source: BlockInStreamSource,
         block_size: i64,
         block_id: i64,
-        options: InStreamOptions<B>,
-    ) -> BlockInStream<GrpcDataReader>
+        options: &InStreamOptions<B>,
+    ) -> BlockInStream
     where
         B: BlockLocationPolicy,
     {
-        let length = 0;
-        let position = 0;
-        let EOF = true;
+        let buffer = Cursor::new(vec![1, 2, 3]);
+        let current_chunk = DefaultDataBuffer { buffer };
+        BlockInStream {
+            block_id,
+            current_chunk,
+        }
+    }
+
+    async fn read_chunck(&mut self, off: i64, len: i64) -> Result<(), AlluxioException> {
+        // TODO: add more DataReader
+        let data_reader: GrpcDataReader = self.get_data_reader(off, len);
+        let data = data_reader.read_chunk().await?;
+        self.current_chunk = data;
+        Ok(())
+    }
+
+    pub fn remaining(&self) -> usize {
+        0
+    }
+
+    fn get_data_reader<T>(&self, offset: i64, length: i64) -> T
+    where
+        T: DataReader,
+    {
         let read_request = ReadRequest {
-            block_id: Some(100),
-            chunk_size: Some(1000),
-            length: Some(50),
-            offset: Some(5),
+            block_id: Some(self.block_id),
+            chunk_size: Some(1024 * 1024),
+            length: Some(length),
+            offset: Some(offset),
             offset_received: None,
             open_ufs_block_options: None,
             position_short: None,
@@ -343,62 +376,13 @@ where
         let address = WorkerNetAddress {
             host: "localhost".to_string(),
         };
-        let data_reader = GrpcDataReader::create(read_request, address);
-        let buffer = Cursor::new(vec![1, 2, 3]);
-        let current_chunk = DefaultDataBuffer { buffer };
-        BlockInStream {
-            length,
-            position,
-            EOF,
-            data_reader,
-            current_chunk,
-        }
-    }
-
-    async fn read(&mut self, b: &Vec<u8>, off: i64, len: i64) -> i64 {
-        if len == 0 {
-            return 0;
-        }
-        if self.position == self.length {
-            return -1;
-        }
-        self.read_chunck();
-        // if (mCurrentChunk == null) { // mCurrentChunk是DataBuffer
-        //   mEOF = true;
-        // }
-        // if (mEOF) {
-        //   closeDataReader();
-        //   Preconditions
-        //       .checkState(mPos >= mLength, PreconditionMessage.BLOCK_LENGTH_INCONSISTENT.toString(),
-        //           mId, mLength, mPos);
-        //   return -1;
-        // }
-        // int toRead = Math.min(len, mCurrentChunk.readableBytes());
-        // byteBuffer.position(off).limit(off + toRead);
-        // mCurrentChunk.readBytes(byteBuffer);
-        // mPos += toRead;
-        // if (mPos == mLength) {
-        //   // a performance improvement introduced by https://github.com/Alluxio/alluxio/issues/14020
-        //   closeDataReader();
-        // }
-        // return toRead;
-        0
-    }
-
-    async fn read_chunck(&mut self) -> Result<(), AlluxioException> {
-        let data = self.data_reader.read_chunk().await?;
-        let buf = self.current_chunk.get_buffer();
-        buf.get_mut().copy_from_slice(data.buffer.get_ref());
-        Ok(())
+        T::create(read_request, address)
     }
 }
 
 // Not Ready
 #[async_trait]
-impl<T> InputStream for BlockInStream<T>
-where
-    T: DataReader,
-{
+impl InputStream for BlockInStream {
     ///    Reads up to len bytes of data from the input stream into the byte buffer.
     ///
     ///    @param b the buffer into which the data is read
@@ -406,16 +390,26 @@ where
     ///    @param len the maximum number of bytes to read
     ///    @return the total number of bytes read into the buffer, or -1 if there is no more data because
     ///            the end of the stream has been reached
-    async fn read(&mut self, b: &mut Vec<u8>, off: i64, len: i64) -> Result<i64, AlluxioException> {
-        if len == 0 {
-            return Ok(0);
-        }
-        if self.length == self.position {
-            return Ok(-1);
-        }
-        let data = &mut self.data_reader.read_chunk().await?;
-        b.clone_from_slice(data.get_buffer().get_ref());
-        Ok(data.get_buffer().get_ref().len() as i64)
+    async fn read(
+        &mut self,
+        b: &mut Cursor<Vec<u8>>,
+        off: i64,
+        len: i64,
+    ) -> Result<i64, AlluxioException> {
+        // if len == 0 {
+        //     return Ok(0);
+        // }
+        // if self.length == self.position {
+        //     return Ok(-1);
+        // }
+        self.read_chunck(off, len).await?;
+        let length_before = b.get_ref().len();
+        let data = self.current_chunk.get_buffer().get_ref().as_slice();
+        // TODO data[0..len]
+        b.get_mut().extend_from_slice(data);
+        let length_after = b.get_ref().len();
+        let increase = length_after - length_before;
+        Ok(increase as i64)
     }
 }
 

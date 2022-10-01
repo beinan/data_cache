@@ -1,7 +1,10 @@
 use alluxio_grpc::alluxio::grpc::block::ReadRequest;
+use futures::stream;
+use std::io::Cursor;
 use tonic::service::interceptor::InterceptedService;
 use tonic::transport::Channel;
 
+use alluxio_common::exception::AlluxioException;
 use alluxio_grpc::alluxio::grpc::file::{
     file_system_master_client_service_client::FileSystemMasterClientServiceClient, FileInfo,
     GetStatusPOptions, GetStatusPRequest, ListStatusPOptions, ListStatusPRequest, OpenFilePOptions,
@@ -14,11 +17,11 @@ use crate::file::common::{
     InStreamOptions, LocalFirstPolicy, URIStatus, WorkerNetAddress,
 };
 
-use super::common::DataBuffer;
-
-#[derive(Debug)]
+// #[derive(Debug)]
 pub struct AlluxioFileSystem {
     client: FileSystemMasterClientServiceClient<InterceptedService<Channel, AuthInterceptor>>,
+    options: Result<InStreamOptions<LocalFirstPolicy>, AlluxioException>,
+    context: Result<FileSystemContext, AlluxioException>,
 }
 
 impl AlluxioFileSystem {
@@ -28,6 +31,12 @@ impl AlluxioFileSystem {
                 client.channel,
                 client.interceptor,
             ),
+            options: Err(AlluxioException::UnexpectedAlluxioException {
+                message: "InStreamOptions not set for AlluxioFileSystem".to_string(),
+            }),
+            context: Err(AlluxioException::UnexpectedAlluxioException {
+                message: "FileSystemContext not set for AlluxioFileSystem".to_string(),
+            }),
         });
     }
 
@@ -70,33 +79,35 @@ impl AlluxioFileSystem {
             }),
         };
         let response = self.client.list_status(request).await?;
-        // println!("list status {:?}", response);
         let mut stream = response.into_inner();
         while let Ok(Some(list_status_response)) = stream.message().await {
-            //println!("Ls RESPONSE streaming = {:?}", listStatusResponse);
             return Ok(list_status_response.file_infos);
         }
         Ok(Vec::new())
     }
 
     // TODO Rewrite the code to avoid using multiple nested matches
-    pub async fn open_file(&mut self, path: String) -> Result<Vec<u8>, String> {
+    pub async fn open_file<'a>(
+        &mut self,
+        path: String,
+    ) -> Result<AlluxioFileInStream<LocalFirstPolicy>, AlluxioException> {
+        // just for write log
+        let path_clone = path.clone();
         match self.get_status(path).await {
             Ok(status) => {
                 match status {
                     Some(file_info) => {
-                        // println!("{:?}", file_info);
                         if file_info.folder() {
-                            return Err("OpenDirectoryException".to_string());
+                            return Err(AlluxioException::InvalidPathException {
+                                message: "OpenDirectoryException".to_string(),
+                            });
                         }
                         if !file_info.completed() {
-                            return Err("FileIncompleteException".to_string());
+                            return Err(AlluxioException::FileIncompleteException {
+                                message: path_clone,
+                            });
                         }
-                        // AlluxioConfiguration conf = mFsContext.getPathConf(path);
-                        // OpenFilePOptions mergedOptions = FileSystemOptions.openFileDefaults(conf)
-                        //     .toBuilder().mergeFrom(options).build();
-                        // InStreamOptions inStreamOptions = new InStreamOptions(status, mergedOptions, conf);
-                        // return new AlluxioFileInStream(status, inStreamOptions, mFsContext);
+
                         let status = URIStatus { file_info };
                         let options = InStreamOptions {
                             status,
@@ -105,38 +116,24 @@ impl AlluxioFileSystem {
                             position_short: false, // Set position_short to false for minimum available
                         };
                         let context = FileSystemContext {};
-                        // let in_stream: AlluxioFileInStream<GrpcDataReader, LocalFirstPolicy> =
-                        //     AlluxioFileInStream::new(options, context);
-                        // TODO FileInStream <- BlockInStream <- DataReader
-                        let read_request = ReadRequest {
-                            block_id: Some(83902857216),
-                            chunk_size: Some(1000),
-                            length: Some(50),
-                            offset: Some(5),
-                            offset_received: None,
-                            open_ufs_block_options: None,
-                            position_short: None,
-                            promote: None,
-                        };
-                        let address = WorkerNetAddress {
-                            host: "localhost".to_string(),
-                        };
-                        let data_reader = GrpcDataReader::create(read_request, address);
-                        match data_reader.read_chunk().await {
-                            Ok(mut data_buffer) => {
-                                let mut result = Vec::new();
-                                match data_buffer.read_bytes(&mut result) {
-                                    Ok(()) => Ok(result),
-                                    Err(err) => Err(err.to_string()),
-                                }
-                            }
-                            Err(err) => Err(err.to_string()),
-                        }
+                        self.options = Ok(options);
+                        self.context = Ok(context);
+                        let in_stream = AlluxioFileInStream::new(
+                            self.options.as_ref().unwrap(),
+                            self.context.as_ref().unwrap(),
+                        );
+                        in_stream
                     }
-                    None => Ok(Vec::new()),
+                    None => {
+                        return Err(AlluxioException::FileDoesNotExistException {
+                            message: path_clone,
+                        })
+                    }
                 }
             }
-            Err(err) => Err(err.to_string()),
+            Err(err) => Err(AlluxioException::UnexpectedAlluxioException {
+                message: path_clone,
+            }),
         }
     }
 }

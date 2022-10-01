@@ -1,4 +1,5 @@
 #![feature(async_closure)]
+#![feature(slice_pattern)]
 
 use structopt::StructOpt;
 
