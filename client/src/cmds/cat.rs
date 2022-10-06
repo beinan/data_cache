@@ -1,4 +1,3 @@
-use core::slice::SlicePattern;
 use std::io::Cursor;
 
 use crate::file::common::{AlluxioFileInStream, InputStream, LocalFirstPolicy};

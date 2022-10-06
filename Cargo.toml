@@ -1,2 +1,5 @@
 [workspace]
 members = ["common", "worker", "client", "grpc"]
+
+[profile.release]
+debug = true
