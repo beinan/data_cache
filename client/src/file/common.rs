@@ -9,10 +9,8 @@ use alluxio_grpc::alluxio::grpc::file::{FileBlockInfo, FileInfo, OpenFilePOption
 use alluxio_grpc::grpc_client::Client;
 
 use async_trait::async_trait;
-use futures::sink::Buffer;
 use futures::stream;
 use tonic::Request;
-use tonic::{metadata::MetadataValue, transport::Channel};
 
 // WIP
 #[async_trait]
@@ -53,11 +51,6 @@ impl DataBuffer for DefaultDataBuffer {
     }
 
     fn read_bytes(&mut self, output_buf: &mut Vec<u8>) -> Result<(), AlluxioException> {
-        // if self.get_length() <= output_buf.len() {
-        //     output_buf.clone_from_slice(&self.buffer.get_ref());
-        // } else {
-        //     output_buf.clone_from_slice(&self.buffer.get_ref()[..output_buf.len() - 1]);
-        // }
         output_buf.extend_from_slice(&self.buffer.get_ref());
         Ok(())
     }
@@ -265,8 +258,13 @@ where
             let file_block_info = self.file_info_map.get(block_id).unwrap();
             let block_info = file_block_info.block_info.as_ref().unwrap();
             let mut block_in_stream = self.create_block_instream(block_info);
-
-            let bytes_read = block_in_stream.read(b, current_offset, bytes_left).await?;
+            let block_size = self.status.file_info.block_size_bytes();
+            let len_to_read = if bytes_left > block_size {
+                block_size
+            } else {
+                bytes_left
+            };
+            let bytes_read = block_in_stream.read(b, current_offset, len_to_read).await?;
 
             if bytes_read > 0 {
                 bytes_left -= bytes_read;
@@ -347,6 +345,7 @@ impl BlockInStream {
         }
     }
 
+    // 此offset非文件的offset，应该是block的offset
     async fn read_chunck(&mut self, off: i64, len: i64) -> Result<(), AlluxioException> {
         // TODO: add more DataReader
         let data_reader: GrpcDataReader = self.get_data_reader(off, len);
@@ -396,17 +395,20 @@ impl InputStream for BlockInStream {
         off: i64,
         len: i64,
     ) -> Result<i64, AlluxioException> {
-        // if len == 0 {
-        //     return Ok(0);
-        // }
-        // if self.length == self.position {
-        //     return Ok(-1);
-        // }
-        self.read_chunck(off, len).await?;
+        if len == 0 {
+            return Ok(0);
+        }
         let length_before = b.get_ref().len();
-        let data = self.current_chunk.get_buffer().get_ref().as_slice();
-        // TODO data[0..len]
-        b.get_mut().extend_from_slice(data);
+        let mut remaining = len;
+        let mut pos = 0;
+        let mut data;
+        while remaining > 0 {
+            self.read_chunck(pos, len).await?;
+            data = self.current_chunk.get_buffer().get_ref().as_slice();
+            b.get_mut().extend_from_slice(data);
+            pos += data.len() as i64;
+            remaining -= pos;
+        }
         let length_after = b.get_ref().len();
         let increase = length_after - length_before;
         Ok(increase as i64)

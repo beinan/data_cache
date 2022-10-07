@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="AutoImportSettings">
+    <option name="autoReloadType" value="SELECTIVE" />
+  </component>
+  <component name="ChangeListManager">
+    <list default="true" id="0abb8e5d-69db-4b68-8431-a05a43d51c89" name="Default Changelist" comment="" />
+    <option name="SHOW_DIALOG" value="false" />
+    <option name="HIGHLIGHT_CONFLICTS" value="true" />
+    <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
+    <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="Git.Settings">
+    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$/../.." />
+  </component>
+  <component name="ProjectId" id="2FlKXomPPIkloVJst9ABotMsMgh" />
+  <component name="ProjectLevelVcsManager" settingsEditedManually="true" />
+  <component name="ProjectViewState">
+    <option name="hideEmptyMiddlePackages" value="true" />
+    <option name="showLibraryContents" value="true" />
+  </component>
+  <component name="PropertiesComponent">
+    <property name="RunOnceActivity.OpenProjectViewOnStart" value="true" />
+    <property name="RunOnceActivity.ShowReadmeOnStart" value="true" />
+    <property name="last_opened_file_path" value="$PROJECT_DIR$" />
+    <property name="project.structure.last.edited" value="Project" />
+    <property name="project.structure.proportion" value="0.15" />
+    <property name="project.structure.side.proportion" value="0.4305177" />
+    <property name="settings.editor.selected.configurable" value="Debugger_Data_Views_Java" />
+  </component>
+  <component name="RunManager" selected="JUnit.NativeCacheManagerTest.putAndGetTest">
+    <configuration name="NativeCacheManagerTest" type="JUnit" factoryName="JUnit" temporary="true" nameIsGenerated="true">
+      <module name="java_lib" />
+      <extension name="coverage">
+        <pattern>
+          <option name="PATTERN" value="alluxio.sdk.file.cache.*" />
+          <option name="ENABLED" value="true" />
+        </pattern>
+      </extension>
+      <option name="PACKAGE_NAME" value="alluxio.sdk.file.cache" />
+      <option name="MAIN_CLASS_NAME" value="alluxio.sdk.file.cache.NativeCacheManagerTest" />
+      <option name="TEST_OBJECT" value="class" />
+      <method v="2">
+        <option name="Make" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="NativeCacheManagerTest.putAndGetTest" type="JUnit" factoryName="JUnit" temporary="true" nameIsGenerated="true">
+      <module name="java_lib" />
+      <extension name="coverage">
+        <pattern>
+          <option name="PATTERN" value="alluxio.sdk.file.cache.*" />
+          <option name="ENABLED" value="true" />
+        </pattern>
+      </extension>
+      <option name="PACKAGE_NAME" value="alluxio.sdk.file.cache" />
+      <option name="MAIN_CLASS_NAME" value="alluxio.sdk.file.cache.NativeCacheManagerTest" />
+      <option name="METHOD_NAME" value="putAndGetTest" />
+      <option name="TEST_OBJECT" value="method" />
+      <method v="2">
+        <option name="Make" enabled="true" />
+      </method>
+    </configuration>
+    <recent_temporary>
+      <list>
+        <item itemvalue="JUnit.NativeCacheManagerTest.putAndGetTest" />
+        <item itemvalue="JUnit.NativeCacheManagerTest" />
+      </list>
+    </recent_temporary>
+  </component>
+  <component name="SpellCheckerSettings" RuntimeDictionaries="0" Folders="0" CustomDictionaries="0" DefaultDictionary="application-level" UseSingleDictionary="true" transferred="true" />
+  <component name="TaskManager">
+    <task active="true" id="Default" summary="Default task">
+      <changelist id="0abb8e5d-69db-4b68-8431-a05a43d51c89" name="Default Changelist" comment="" />
+      <created>1665061272684</created>
+      <option name="number" value="Default" />
+      <option name="presentableId" value="Default" />
+      <updated>1665061272684</updated>
+    </task>
+    <servers />
+  </component>
+  <component name="XSLT-Support.FileAssociations.UIState">
+    <expand />
+    <select />
+  </component>
+  <component name="com.intellij.coverage.CoverageDataManagerImpl">
+    <SUITE FILE_PATH="coverage/java_lib$NativeCacheManagerTest_putAndGetTest.ic" NAME="NativeCacheManagerTest.putAndGetTest Coverage Results" MODIFIED="1665064741009" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="idea" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false">
+      <FILTER>alluxio.sdk.file.cache.*</FILTER>
+    </SUITE>
+    <SUITE FILE_PATH="coverage/java_lib$NativeCacheManagerTest.ic" NAME="NativeCacheManagerTest Coverage Results" MODIFIED="1665064095965" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="idea" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false">
+      <FILTER>alluxio.sdk.file.cache.*</FILTER>
+    </SUITE>
+  </component>
+</project>

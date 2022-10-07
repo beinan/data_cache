@@ -32,17 +32,15 @@ pub async fn cat(client: Client, options: &CatOptions) -> Result<String, String>
                         > = file_system.open_file(options.path.clone()).await;
                         match file_in_stream {
                             Ok(mut in_stream) => {
-                                let mut read_result =
+                                let read_result =
                                     in_stream.read(&mut buffer, 0, info.length()).await;
+                                if read_result.is_err() {
+                                    println!("{:?}", read_result);
+                                }
                                 let is_ok = read_result.as_ref().is_ok();
                                 assert!(is_ok);
-                                let mut read = read_result.unwrap();
-                                while read != -1 {
-                                    read_result =
-                                        in_stream.read(&mut buffer, 0, info.length()).await;
-                                    assert!(is_ok);
-                                    read = read_result.unwrap();
-                                }
+                                let read = read_result.unwrap();
+                                assert!(read != -1);
                                 println!(
                                     "{:?}",
                                     String::from_utf8_lossy(buffer.get_ref().as_slice())

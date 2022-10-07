@@ -1,6 +1,3 @@
-use alluxio_grpc::alluxio::grpc::block::ReadRequest;
-use futures::stream;
-use std::io::Cursor;
 use tonic::service::interceptor::InterceptedService;
 use tonic::transport::Channel;
 
@@ -140,4 +137,14 @@ impl AlluxioFileSystem {
 
 pub fn create(client: Client) -> Result<AlluxioFileSystem, &'static str> {
     return Ok(AlluxioFileSystem::create(client).unwrap());
+}
+
+#[cfg(test)]
+mod tests {
+
+    // GrpcDataReader
+    #[test]
+    fn read_chuck_works() {
+        assert_eq!(2 + 2, 4);
+    }
 }

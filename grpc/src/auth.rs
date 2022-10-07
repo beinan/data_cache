@@ -66,10 +66,10 @@ impl AuthClient {
         let auth_request = Request::new(ReceiverStream::new(rx));
         match self.client.authenticate(auth_request).await {
             Ok(response) => {
-                println!("Auth response = {:?}", response);
+                // println!("Auth response = {:?}", response);
                 let mut stream = response.into_inner();
                 while let Ok(Some(r)) = stream.message().await {
-                    println!("RESPONSE streaming = {:?}", r);
+                    // println!("RESPONSE streaming = {:?}", r);
                     result_tx.send(r).await;
                 }
                 return Ok(());
