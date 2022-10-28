@@ -1,18 +1,20 @@
-use std::fmt::Error;
+#![feature(async_closure)]
+#![feature(slice_pattern)]
 
 use structopt::StructOpt;
 
 use alluxio_common::settings::Settings;
-use lib::grpc_client::Client;
+use alluxio_grpc::grpc_client::Client;
 
 mod cmds;
+mod file;
 
 #[tokio::main]
 async fn main() -> Result<(), String> {
     let cmd = cmds::Opt::from_args();
     match Settings::new() {
         Ok(settings) => {
-            match Client::connect_with_simple_auth(settings.master, |client: Client| {
+            match Client::connect_with_simple_auth(settings.master, 19998, |client: Client| {
                 cmd.execute(client)
             })
             .await
@@ -21,6 +23,6 @@ async fn main() -> Result<(), String> {
                 Err(err) => Err(err),
             }
         }
-        Err(configError) => Err(configError.to_string()),
+        Err(config_error) => Err(config_error.to_string()),
     }
 }

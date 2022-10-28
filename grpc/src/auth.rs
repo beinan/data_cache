@@ -1,5 +1,5 @@
 use tokio::sync::mpsc;
-use tokio::sync::mpsc::{Receiver, Sender};
+use tokio::sync::mpsc::Sender;
 use tokio_stream::wrappers::ReceiverStream;
 use tonic::metadata::{Ascii, AsciiMetadataValue, MetadataValue};
 use tonic::service::interceptor::InterceptedService;
@@ -12,8 +12,8 @@ use crate::alluxio::grpc::sasl::{ChannelAuthenticationScheme, SaslMessage, SaslM
 
 #[derive(Clone, Debug)]
 pub struct AuthInterceptor {
-    pub(crate) channel_id: String,
-    token: MetadataValue<Ascii>,
+    pub channel_id: String,
+    pub token: MetadataValue<Ascii>,
 }
 
 impl Interceptor for AuthInterceptor {
@@ -49,7 +49,10 @@ impl AuthClient {
             client: SaslAuthenticationServiceClient::with_interceptor(channel, interceptor),
         });
     }
-    pub async fn sendAuthRequest(&mut self, result_tx: Sender<SaslMessage>) -> Result<(), String> {
+    pub async fn send_auth_request(
+        &mut self,
+        result_tx: Sender<SaslMessage>,
+    ) -> Result<(), String> {
         let (mut tx, rx) = mpsc::channel(4);
         tx.send(SaslMessage {
             authentication_scheme: Some(ChannelAuthenticationScheme::Simple as i32),
@@ -63,10 +66,10 @@ impl AuthClient {
         let auth_request = Request::new(ReceiverStream::new(rx));
         match self.client.authenticate(auth_request).await {
             Ok(response) => {
-                println!("Auth response = {:?}", response);
+                // println!("Auth response = {:?}", response);
                 let mut stream = response.into_inner();
                 while let Ok(Some(r)) = stream.message().await {
-                    println!("RESPONSE streaming = {:?}", r);
+                    // println!("RESPONSE streaming = {:?}", r);
                     result_tx.send(r).await;
                 }
                 return Ok(());

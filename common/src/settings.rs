@@ -1,4 +1,4 @@
-use config::{Config, ConfigError, Environment, File};
+use config::{Config, ConfigError, File};
 use serde_derive::Deserialize;
 use std::env;
 
@@ -15,7 +15,7 @@ impl Settings {
         let s = Config::builder()
             .add_source(File::with_name("alluxio_config"))
             .build()?;
-        println!("load settings: {:?}", s);
+        // println!("load settings: {:?}", s);
         s.try_deserialize()
     }
 }
