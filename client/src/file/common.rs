@@ -85,7 +85,7 @@ impl DataReader for GrpcDataReader {
         match Settings::new() {
             Ok(settings) => {
                 let read_block_fun =
-                    async move |client: Client| -> Result<DefaultDataBuffer, AlluxioException> {
+                    |client: Client| async move {
                         let mut block_worker_client = BlockWorkerClient::with_interceptor(
                             client.channel,
                             move |mut req: Request<()>| {

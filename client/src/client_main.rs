@@ -1,10 +1,7 @@
-#![feature(async_closure)]
-#![feature(slice_pattern)]
-
+use alluxio_grpc::grpc_client::Client;
 use structopt::StructOpt;
 
 use alluxio_common::settings::Settings;
-use alluxio_grpc::grpc_client::Client;
 
 mod cmds;
 mod file;
