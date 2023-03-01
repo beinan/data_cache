@@ -19,7 +19,8 @@ public class NativeCacheManager
 
   private long nativeCacheHandle;
 
-  public native boolean init(long cacheSize, int segSize, int hashPower);
+  //seg will panic if ssd is enabled and the file already exists
+  public native boolean init(long cacheSize, int segSize, int hashPower, boolean enableSsd, String fileName);
 
   public native int get(byte[] key, int pageOffset, int bytesToRead, byte[] buffer,
       int offsetInBuffer);
