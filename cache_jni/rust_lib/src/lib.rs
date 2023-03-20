@@ -19,7 +19,7 @@ pub extern "system" fn Java_alluxio_sdk_file_cache_NativeCacheManager_get(
                 let rust_key = &env.convert_byte_array(key).unwrap()[..];
                 let item = seg.get(rust_key);
                 if item.is_none() {
-                    -2
+                    -1
                 } else {
                     match item.unwrap().value() {
                         Value::Bytes(v) => {
@@ -44,7 +44,7 @@ pub extern "system" fn Java_alluxio_sdk_file_cache_NativeCacheManager_put(env: J
             let seg = guard.deref_mut();
             let rust_key = &env.convert_byte_array(key).unwrap()[..];
             let rust_value = &env.convert_byte_array(page).unwrap();
-            seg.insert(rust_key, rust_value, None, Duration::ZERO);//.expect("fail to insert into seg");
+            seg.insert(rust_key, rust_value, None, Duration::ZERO);
             JNI_TRUE
         },
         Err(_) => JNI_FALSE
@@ -52,24 +52,44 @@ pub extern "system" fn Java_alluxio_sdk_file_cache_NativeCacheManager_put(env: J
 }
 
 #[no_mangle]
-pub extern "system" fn Java_alluxio_sdk_file_cache_NativeCacheManager_init(env: JNIEnv, obj: JObject, cache_size: jlong, seg_size: jint, hash_power: jint, enable_ssd: jboolean, file_name: JString) -> jboolean {
+pub extern "system" fn Java_alluxio_sdk_file_cache_NativeCacheManager_init__JIIZLjava_lang_String_2(env: JNIEnv, obj: JObject, cache_size: jlong, seg_size: jint, hash_power: jint, enable_ssd: jboolean, file_name: JString) -> jboolean {
     let file_name : String = env.get_string(file_name).expect("couldn't get file name!").into();
     let enable_ssd = enable_ssd != 0;
-    let cache = 
-        if enable_ssd {
-            Seg::builder()
+    let mut cache_builder = Seg::builder()
             .heap_size(cache_size as usize)
             .segment_size(seg_size)
             .hash_power(hash_power as u8)
-            .datapool_path(Some(PathBuf::from(file_name)))
-            .eviction(Policy::Random).build().expect("failed to create cache")
-        } else {
-            Seg::builder()
+            .eviction(Policy::Random);
+    if enable_ssd {
+        cache_builder = cache_builder.datapool_path(Some(PathBuf::from(file_name)));
+    }
+    let cache = cache_builder.build().expect("failed to create cache");
+    match env.set_rust_field(obj, "nativeCacheHandle", cache) {
+        Ok(_) => JNI_TRUE,
+        Err(_) => JNI_FALSE,
+    }
+}
+
+
+#[no_mangle]
+pub extern "system" fn Java_alluxio_sdk_file_cache_NativeCacheManager_init__Lalluxio_sdk_file_cache_NativeCacheManagerOptions_2(env: JNIEnv, obj: JObject, options: JObject) -> jboolean {
+    let cache_size = env.get_field(options, "cacheSize", "J").unwrap().j().unwrap();
+    let seg_size = env.get_field(options, "segSize", "I").unwrap().i().unwrap();
+    let hash_power = env.get_field(options, "hashPower", "I").unwrap().i().unwrap();
+    let enable_ssd = env.get_field(options, "enableSsd", "Z").unwrap().z().unwrap();
+    let file_name = env.get_field(options, "fileName", "Ljava/lang/String;").unwrap().l().unwrap();
+    let file_name = JString::from(file_name);
+    let file_name : String = env.get_string(file_name).expect("couldn't get file name!").into();
+    //let enable_ssd = enable_ssd != 0;
+    let mut cache_builder = Seg::builder()
             .heap_size(cache_size as usize)
             .segment_size(seg_size)
             .hash_power(hash_power as u8)
-            .eviction(Policy::Random).build().expect("failed to create cache")
-        };
+            .eviction(Policy::Random);
+    if enable_ssd {
+        cache_builder = cache_builder.datapool_path(Some(PathBuf::from(file_name)));
+    }
+    let cache = cache_builder.build().expect("failed to create cache");
     match env.set_rust_field(obj, "nativeCacheHandle", cache) {
         Ok(_) => JNI_TRUE,
         Err(_) => JNI_FALSE,
