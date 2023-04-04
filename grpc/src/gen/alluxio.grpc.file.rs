@@ -177,6 +177,8 @@ pub struct DeletePOptions {
     pub unchecked: ::core::option::Option<bool>,
     #[prost(message, optional, tag="4")]
     pub common_options: ::core::option::Option<FileSystemMasterCommonPOptions>,
+    #[prost(bool, optional, tag="6")]
+    pub delete_mount_point: ::core::option::Option<bool>,
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct DeletePRequest {
@@ -289,6 +291,13 @@ pub struct ListStatusPOptions {
     /// No data will be transferred.
     #[prost(bool, optional, tag="5")]
     pub load_metadata_only: ::core::option::Option<bool>,
+    /// Setting this to true will disable checking during metadata sync to see if the children
+    /// of a directory has been loaded. This will avoid a costly full traversal of the file
+    /// system during recursive listings, but may result in the children of directories not
+    /// being loaded. It is recommended to set this to true after the first call of a
+    /// recursive partial listing.
+    #[prost(bool, optional, tag="6")]
+    pub disable_are_descendants_loaded_check: ::core::option::Option<bool>,
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ListStatusPRequest {
@@ -297,6 +306,79 @@ pub struct ListStatusPRequest {
     pub path: ::core::option::Option<::prost::alloc::string::String>,
     #[prost(message, optional, tag="2")]
     pub options: ::core::option::Option<ListStatusPOptions>,
+}
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct ListStatusPartialPRequest {
+    ///* the path of the file or directory 
+    #[prost(string, optional, tag="1")]
+    pub path: ::core::option::Option<::prost::alloc::string::String>,
+    #[prost(message, optional, tag="2")]
+    pub options: ::core::option::Option<ListStatusPartialPOptions>,
+}
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct ListStatusPartialPOptions {
+    #[prost(message, optional, tag="1")]
+    pub options: ::core::option::Option<ListStatusPOptions>,
+    /// Batch size for partial listings.
+    #[prost(int32, optional, tag="5")]
+    pub batch_size: ::core::option::Option<i32>,
+    /// Only match files with a given prefix.
+    /// The prefix starts after the given listing path
+    /// (e.g. if "/dir" is being listed and prefix is "/pre", then
+    /// any file with path having a prefix of "/dir/pre" will be listed).
+    #[prost(string, optional, tag="6")]
+    pub prefix: ::core::option::Option<::prost::alloc::string::String>,
+    /// An offset type can be chosen as from where to start the listing.
+    /// If none are set the listing will start from the beginning.
+    #[prost(oneof="list_status_partial_p_options::OffsetType", tags="2, 3, 4")]
+    pub offset_type: ::core::option::Option<list_status_partial_p_options::OffsetType>,
+}
+/// Nested message and enum types in `ListStatusPartialPOptions`.
+pub mod list_status_partial_p_options {
+    /// An offset type can be chosen as from where to start the listing.
+    /// If none are set the listing will start from the beginning.
+    #[derive(Clone, PartialEq, ::prost::Oneof)]
+    pub enum OffsetType {
+        /// Start listing after the given FileId, the FileId can be calculated from the
+        /// result of a previous listing's FileInfo or URIStatus results using the
+        /// getFileId method. If the file with the given ID has been moved or deleted
+        /// then the call will return an error.
+        #[prost(int64, tag="2")]
+        OffsetId(i64),
+        /// Start the listing after this path.
+        /// If startAfter starts with "/", then it is expected that the path given in
+        /// the ListStatusPartialPRequest is a prefix of startAfter (e.g. if listing "/dir",
+        /// then startAfter could be "/dir/next"). Otherwise if start after does not start with "/",
+        /// then startAfter is appended to the path given in the ListStatusPartialPRequest
+        /// (e.g. if the listing path is "/dir" and startAfter is "/after" then files that
+        /// start after "/dir/after" in lexicographic order will be listed).
+        /// The full path itself does not need to exist.
+        /// This offset type is recommended to use if POSIX compatible listings are needed.
+        #[prost(string, tag="3")]
+        StartAfter(::prost::alloc::string::String),
+        /// Only start listing items after this many items have been processed.
+        /// This will count from the start of the listing up to offsetCont
+        /// before listing items. This can be useful for example to show
+        /// individual pages in a UI. Note that this listing type may
+        /// be more expensive than the others as it must traverse offsetCount
+        /// items, while the others reach the listing point by querying
+        /// a skip list.
+        #[prost(int32, tag="4")]
+        OffsetCount(i32),
+    }
+}
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct ListStatusPartialPResponse {
+    #[prost(message, repeated, tag="1")]
+    pub file_infos: ::prost::alloc::vec::Vec<FileInfo>,
+    /// True if the partial listing was truncated.
+    #[prost(bool, optional, tag="2")]
+    pub is_truncated: ::core::option::Option<bool>,
+    /// The total number of files in the listing directory,
+    /// (i.e. the size of the result if partial listing was not used)
+    /// or -1 if the listing was recursive.
+    #[prost(int64, optional, tag="3")]
+    pub file_count: ::core::option::Option<i64>,
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct LoadMetadataPOptions {
@@ -464,6 +546,8 @@ pub struct GetMountTablePResponse {
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct GetMountTablePRequest {
+    #[prost(bool, optional, tag="1")]
+    pub check_ufs: ::core::option::Option<bool>,
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct MountPointInfo {
@@ -509,6 +593,13 @@ pub struct FileSystemCommand {
     pub command_options: ::core::option::Option<FileSystemCommandOptions>,
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
+pub struct S3SyntaxOptions {
+    #[prost(bool, optional, tag="1")]
+    pub overwrite: ::core::option::Option<bool>,
+    #[prost(bool, optional, tag="2")]
+    pub is_multipart_upload: ::core::option::Option<bool>,
+}
+#[derive(Clone, PartialEq, ::prost::Message)]
 pub struct RenamePResponse {
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
@@ -517,6 +608,8 @@ pub struct RenamePOptions {
     pub common_options: ::core::option::Option<FileSystemMasterCommonPOptions>,
     #[prost(bool, optional, tag="2")]
     pub persist: ::core::option::Option<bool>,
+    #[prost(message, optional, tag="3")]
+    pub s3_syntax_options: ::core::option::Option<S3SyntaxOptions>,
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct RenamePRequest {
@@ -714,6 +807,71 @@ pub struct GetStateLockHoldersPRequest {
     pub options: ::core::option::Option<GetStateLockHoldersPOptions>,
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
+pub struct NeedsSyncRequest {
+    #[prost(string, required, tag="1")]
+    pub path: ::prost::alloc::string::String,
+}
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct NeedsSyncResponse {
+}
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct SubmitJobPRequest {
+    #[prost(bytes="vec", optional, tag="1")]
+    pub request_body: ::core::option::Option<::prost::alloc::vec::Vec<u8>>,
+}
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct SubmitJobPResponse {
+    #[prost(string, optional, tag="1")]
+    pub job_id: ::core::option::Option<::prost::alloc::string::String>,
+}
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct LoadJobPOptions {
+    #[prost(int64, optional, tag="1")]
+    pub bandwidth: ::core::option::Option<i64>,
+    #[prost(bool, optional, tag="2")]
+    pub verify: ::core::option::Option<bool>,
+    #[prost(bool, optional, tag="3")]
+    pub partial_listing: ::core::option::Option<bool>,
+}
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct StopJobPRequest {
+    #[prost(message, required, tag="1")]
+    pub job_description: JobDescription,
+}
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct StopJobPResponse {
+    #[prost(bool, optional, tag="1")]
+    pub job_stopped: ::core::option::Option<bool>,
+}
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct JobDescription {
+    #[prost(string, required, tag="1")]
+    pub r#type: ::prost::alloc::string::String,
+    #[prost(string, optional, tag="2")]
+    pub path: ::core::option::Option<::prost::alloc::string::String>,
+}
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct JobProgressPOptions {
+    #[prost(enumeration="JobProgressReportFormat", optional, tag="1")]
+    pub format: ::core::option::Option<i32>,
+    #[prost(bool, optional, tag="2")]
+    pub verbose: ::core::option::Option<bool>,
+}
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct GetJobProgressPRequest {
+    #[prost(message, required, tag="1")]
+    pub job_description: JobDescription,
+    #[prost(message, optional, tag="2")]
+    pub options: ::core::option::Option<JobProgressPOptions>,
+}
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct GetJobProgressPResponse {
+    #[prost(string, optional, tag="1")]
+    pub progress_report: ::core::option::Option<::prost::alloc::string::String>,
+    #[prost(enumeration="JobProgressReportFormat", optional, tag="2")]
+    pub format: ::core::option::Option<i32>,
+}
+#[derive(Clone, PartialEq, ::prost::Message)]
 pub struct FileSystemHeartbeatPResponse {
     #[prost(message, optional, tag="1")]
     pub command: ::core::option::Option<FileSystemCommand>,
@@ -856,6 +1014,12 @@ pub enum UfsPMode {
     NoAccess = 1,
     ReadOnly = 2,
     ReadWrite = 3,
+}
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
+#[repr(i32)]
+pub enum JobProgressReportFormat {
+    Text = 1,
+    Json = 2,
 }
 /// Generated client implementations.
 pub mod file_system_master_client_service_client {
@@ -1207,6 +1371,29 @@ pub mod file_system_master_client_service_client {
             self.inner.server_streaming(request.into_request(), path, codec).await
         }
         ///*
+        /// If the path points to a file, the method returns a singleton with its file information.
+        /// If the path points to a directory, the method returns a list with file information for the
+        /// directory contents. This operation takes additional options for partial listing of files.
+        pub async fn list_status_partial(
+            &mut self,
+            request: impl tonic::IntoRequest<super::ListStatusPartialPRequest>,
+        ) -> Result<tonic::Response<super::ListStatusPartialPResponse>, tonic::Status> {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::new(
+                        tonic::Code::Unknown,
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
+            let codec = tonic::codec::ProstCodec::default();
+            let path = http::uri::PathAndQuery::from_static(
+                "/alluxio.grpc.file.FileSystemMasterClientService/ListStatusPartial",
+            );
+            self.inner.unary(request.into_request(), path, codec).await
+        }
+        ///*
         /// Creates a new "mount point", mounts the given UFS path in the Alluxio namespace at the given
         /// path. The path should not exist and should not be nested under any existing mount point.
         pub async fn mount(
@@ -1483,6 +1670,84 @@ pub mod file_system_master_client_service_client {
             let codec = tonic::codec::ProstCodec::default();
             let path = http::uri::PathAndQuery::from_static(
                 "/alluxio.grpc.file.FileSystemMasterClientService/GetStateLockHolders",
+            );
+            self.inner.unary(request.into_request(), path, codec).await
+        }
+        pub async fn needs_sync(
+            &mut self,
+            request: impl tonic::IntoRequest<super::NeedsSyncRequest>,
+        ) -> Result<tonic::Response<super::NeedsSyncResponse>, tonic::Status> {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::new(
+                        tonic::Code::Unknown,
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
+            let codec = tonic::codec::ProstCodec::default();
+            let path = http::uri::PathAndQuery::from_static(
+                "/alluxio.grpc.file.FileSystemMasterClientService/NeedsSync",
+            );
+            self.inner.unary(request.into_request(), path, codec).await
+        }
+        ///*
+        /// Load a directory into Alluxio.
+        pub async fn submit_job(
+            &mut self,
+            request: impl tonic::IntoRequest<super::SubmitJobPRequest>,
+        ) -> Result<tonic::Response<super::SubmitJobPResponse>, tonic::Status> {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::new(
+                        tonic::Code::Unknown,
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
+            let codec = tonic::codec::ProstCodec::default();
+            let path = http::uri::PathAndQuery::from_static(
+                "/alluxio.grpc.file.FileSystemMasterClientService/submitJob",
+            );
+            self.inner.unary(request.into_request(), path, codec).await
+        }
+        pub async fn stop_job(
+            &mut self,
+            request: impl tonic::IntoRequest<super::StopJobPRequest>,
+        ) -> Result<tonic::Response<super::StopJobPResponse>, tonic::Status> {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::new(
+                        tonic::Code::Unknown,
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
+            let codec = tonic::codec::ProstCodec::default();
+            let path = http::uri::PathAndQuery::from_static(
+                "/alluxio.grpc.file.FileSystemMasterClientService/StopJob",
+            );
+            self.inner.unary(request.into_request(), path, codec).await
+        }
+        pub async fn get_job_progress(
+            &mut self,
+            request: impl tonic::IntoRequest<super::GetJobProgressPRequest>,
+        ) -> Result<tonic::Response<super::GetJobProgressPResponse>, tonic::Status> {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::new(
+                        tonic::Code::Unknown,
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
+            let codec = tonic::codec::ProstCodec::default();
+            let path = http::uri::PathAndQuery::from_static(
+                "/alluxio.grpc.file.FileSystemMasterClientService/GetJobProgress",
             );
             self.inner.unary(request.into_request(), path, codec).await
         }

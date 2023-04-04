@@ -112,6 +112,16 @@ pub struct BlockStoreLocationProto {
     #[prost(string, optional, tag="2")]
     pub medium_type: ::core::option::Option<::prost::alloc::string::String>,
 }
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct RetryInfo {
+    #[prost(bool, optional, tag="1")]
+    pub is_retryable: ::core::option::Option<bool>,
+}
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct ErrorInfo {
+    #[prost(enumeration="ErrorType", optional, tag="1")]
+    pub error_type: ::core::option::Option<i32>,
+}
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
 #[repr(i32)]
 pub enum Bits {
@@ -162,4 +172,11 @@ pub enum TtlAction {
     Delete = 0,
     /// Free the file after TTL expires.
     Free = 1,
+}
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
+#[repr(i32)]
+pub enum ErrorType {
+    User = 0,
+    Internal = 1,
+    External = 2,
 }

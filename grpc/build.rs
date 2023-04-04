@@ -1,18 +1,18 @@
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let proto_files = &[
-        "proto/block_worker.proto",
-        "proto/file_system_master.proto",
-        "proto/common.proto",
-        "proto/fscommon.proto",
-        "proto/journal_file.proto",
-        "proto/protocol.proto",
-        "proto/sasl_server.proto",
-        "proto/shared_acl.proto",
+        "grpc/block_worker.proto",
+        "grpc/file_system_master.proto",
+        "grpc/common.proto",
+        "grpc/fscommon.proto",
+//        "grpc/journal_file.proto",
+//        "grpc/protocol.proto",
+        "grpc/sasl_server.proto",
+//        "grpc/shared_acl.proto",
     ];
     tonic_build::configure()
         .build_server(false)
         .out_dir("src/gen")
-        .compile(proto_files, &["proto/."])
+        .compile(proto_files, &["proto"])
         .unwrap_or_else(|e| panic!("protobuf compilation failed: {}", e));
     // recompile protobufs only if any of the proto files changes.
     for file in proto_files {
