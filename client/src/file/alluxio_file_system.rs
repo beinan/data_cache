@@ -8,6 +8,7 @@ use alluxio_grpc::alluxio::grpc::file::{
 };
 use alluxio_grpc::auth::AuthInterceptor;
 use alluxio_grpc::grpc_client::Client;
+use alluxio_grpc::alluxio::grpc::block::block_worker_client::BlockWorkerClient;
 
 use crate::file::common::{
     AlluxioFileInStream, DataReader, DefaultDataBuffer, FileSystemContext, GrpcDataReader,
@@ -16,7 +17,7 @@ use crate::file::common::{
 
 // #[derive(Debug)]
 pub struct AlluxioFileSystem {
-    client: FileSystemMasterClientServiceClient<InterceptedService<Channel, AuthInterceptor>>,
+    client: /*FileSystemMasterClientServiceClient*/BlockWorkerClient<InterceptedService<Channel, AuthInterceptor>>,
     options: Result<InStreamOptions<LocalFirstPolicy>, AlluxioException>,
     context: Result<FileSystemContext, AlluxioException>,
 }
@@ -24,7 +25,7 @@ pub struct AlluxioFileSystem {
 impl AlluxioFileSystem {
     pub fn create(client: Client) -> Result<AlluxioFileSystem, &'static str> {
         return Ok(AlluxioFileSystem {
-            client: FileSystemMasterClientServiceClient::with_interceptor(
+            client: /*FileSystemMasterClientServiceClient*/BlockWorkerClient::with_interceptor(
                 client.channel,
                 client.interceptor,
             ),
@@ -73,6 +74,7 @@ impl AlluxioFileSystem {
                 common_options: None,
                 recursive: Some(false),
                 load_metadata_only: Some(false),
+                disable_are_descendants_loaded_check: Some(false),
             }),
         };
         let response = self.client.list_status(request).await?;
