@@ -2,8 +2,7 @@ syntax = "proto2";
 
 package alluxio.proto.journal;
 
-import "common.proto";
-import "shared_acl.proto";
+import "proto/shared/acl.proto";
 
 // Journal entry messages for the file master.
 
@@ -85,10 +84,10 @@ message NewBlockEntry {
 // - UNION_PRESERVE: Inserts all new keys from xAttr (i.e: preserves any existing keys)
 // - DELETE_KEYS:    Deletes the specified xAttr keys from the existing xAttr map
 enum XAttrUpdateStrategy {
-  TRUNCATE = 1;
-  UNION_REPLACE = 2;
-  UNION_PRESERVE = 3;
-  DELETE_KEYS = 4;
+    TRUNCATE = 1;
+    UNION_REPLACE = 2;
+    UNION_PRESERVE = 3;
+    DELETE_KEYS = 4;
 }
 
 // next available id: 21

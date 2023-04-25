@@ -11,7 +11,7 @@ async fn main() -> Result<(), String> {
     let cmd = cmds::Opt::from_args();
     match Settings::new() {
         Ok(settings) => {
-            match Client::connect_with_simple_auth(settings.master, 19998, |client: Client| {
+            match Client::connect_with_simple_auth(/*settings.master*/"localhost".to_string(), 29999, |client: Client| {
                 cmd.execute(client)
             })
             .await

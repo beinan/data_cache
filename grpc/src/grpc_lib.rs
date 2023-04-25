@@ -27,5 +27,8 @@ pub mod alluxio {
         pub mod shared {
             include!("gen/alluxio.proto.shared.rs");
         }
+        pub mod status {
+            include!("gen/alluxio.proto.status.rs");
+        }
     }
 }
