@@ -61,13 +61,14 @@ impl DataBuffer for DefaultDataBuffer {
 pub trait DataReader: Send + Sync {
     fn create(read_request: ReadRequest, address: WorkerNetAddress) -> Self;
     async fn read_chunk(&self) -> Result<DefaultDataBuffer, AlluxioException>;
+    fn pos(&self) -> i64;
 }
 
 // WIP
 pub struct GrpcDataReader {
-    pos_to_read: i64,
     read_request: ReadRequest,
     address: WorkerNetAddress,
+    pos_to_read: i64,
 }
 
 // WIP
@@ -75,7 +76,8 @@ pub struct GrpcDataReader {
 impl DataReader for GrpcDataReader {
     fn create(read_request: ReadRequest, address: WorkerNetAddress) -> Self {
         GrpcDataReader {
-            pos_to_read: read_request.offset(),
+            // pos_to_read: read_request.offset.unwrap(),
+            pos_to_read: 0,
             read_request,
             address,
         }
@@ -84,41 +86,40 @@ impl DataReader for GrpcDataReader {
     async fn read_chunk(&self) -> Result<DefaultDataBuffer, AlluxioException> {
         match Settings::new() {
             Ok(settings) => {
-                let read_block_fun =
-                    |client: Client| async move {
-                        let mut block_worker_client = BlockWorkerClient::with_interceptor(
-                            client.channel,
-                            move |mut req: Request<()>| {
-                                req.metadata_mut()
-                                    .insert("channel-id", client.interceptor.token.clone());
-                                Ok(req)
-                            },
-                        );
-                        // read block
-                        let mut blocks = vec![];
-                        blocks.push(self.read_request.clone());
-                        let request = Request::new(stream::iter(blocks));
-                        match block_worker_client.read_block(request).await {
-                            Ok(response) => {
-                                let mut stream = response.into_inner();
-                                let mut buffer = Cursor::new(vec![]);
-                                while let Ok(Some(r)) = stream.message().await {
-                                    if let Some(chunk) = r.chunk {
-                                        if let Some(mut data) = chunk.data {
-                                            buffer.get_mut().append(&mut data);
-                                        }
+                let read_block_fun = |client: Client| async move {
+                    let mut block_worker_client = BlockWorkerClient::with_interceptor(
+                        client.channel,
+                        move |mut req: Request<()>| {
+                            req.metadata_mut()
+                                .insert("channel-id", client.interceptor.token.clone());
+                            Ok(req)
+                        },
+                    );
+                    // read block
+                    let mut blocks = vec![];
+                    blocks.push(self.read_request.clone());
+                    let request = Request::new(stream::iter(blocks));
+                    match block_worker_client.read_block(request).await {
+                        Ok(response) => {
+                            let mut stream = response.into_inner();
+                            let mut buffer = Cursor::new(vec![]);
+                            while let Ok(Some(r)) = stream.message().await {
+                                if let Some(chunk) = r.chunk {
+                                    if let Some(mut data) = chunk.data {
+                                        buffer.get_mut().append(&mut data);
                                     }
                                 }
-                                return Ok(DefaultDataBuffer { buffer });
                             }
-                            Err(err) => {
-                                println!("{:?}", err);
-                                return Err(AlluxioException::UnexpectedAlluxioException {
-                                    message: err.to_string(),
-                                });
-                            }
-                        };
+                            return Ok(DefaultDataBuffer { buffer });
+                        }
+                        Err(err) => {
+                            println!("{:?}", err);
+                            return Err(AlluxioException::UnexpectedAlluxioException {
+                                message: err.to_string(),
+                            });
+                        }
                     };
+                };
                 match Client::connect_with_simple_auth(settings.master, 29999, read_block_fun).await
                 {
                     Ok(result) => result,
@@ -131,6 +132,10 @@ impl DataReader for GrpcDataReader {
                 message: config_error.to_string(),
             }),
         }
+    }
+
+    fn pos(&self) -> i64 {
+        return self.pos_to_read;
     }
 }
 
