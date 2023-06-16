@@ -17,7 +17,7 @@ impl Client {
         f: F,
     ) -> Result<T, String>
     where
-        F: Fn(Client) -> Fut,
+        F: FnOnce(Client) -> Fut,
         Fut: Future<Output = T>,
     {
         let address = format!("http://{}:{}", server_addr, server_port);
