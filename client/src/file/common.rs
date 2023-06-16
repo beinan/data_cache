@@ -1,5 +1,6 @@
+use std::borrow::BorrowMut;
 use std::collections::HashMap;
-use std::io::Cursor;
+use std::io::{Cursor, Write};
 
 use alluxio_common::exception::AlluxioException;
 use alluxio_common::settings::Settings;
@@ -60,7 +61,7 @@ impl DataBuffer for DefaultDataBuffer {
 #[async_trait]
 pub trait DataReader: Send + Sync {
     fn create(read_request: ReadRequest, address: WorkerNetAddress) -> Self;
-    async fn read_chunk(&self) -> Result<DefaultDataBuffer, AlluxioException>;
+    async fn read_chunk(&mut self) -> Result<DefaultDataBuffer, AlluxioException>;
     fn pos(&self) -> i64;
 }
 
@@ -77,13 +78,13 @@ impl DataReader for GrpcDataReader {
     fn create(read_request: ReadRequest, address: WorkerNetAddress) -> Self {
         GrpcDataReader {
             // pos_to_read: read_request.offset.unwrap(),
-            pos_to_read: 0,
+            pos_to_read: read_request.offset().clone(),
             read_request,
             address,
         }
     }
 
-    async fn read_chunk(&self) -> Result<DefaultDataBuffer, AlluxioException> {
+    async fn read_chunk(&mut self) -> Result<DefaultDataBuffer, AlluxioException> {
         match Settings::new() {
             Ok(settings) => {
                 let read_block_fun = |client: Client| async move {
@@ -105,10 +106,18 @@ impl DataReader for GrpcDataReader {
                             let mut buffer = Cursor::new(vec![]);
                             while let Ok(Some(r)) = stream.message().await {
                                 if let Some(chunk) = r.chunk {
-                                    if let Some(mut data) = chunk.data {
-                                        buffer.get_mut().append(&mut data);
+                                    if let Some(data) = chunk.data {
+                                        buffer.write_all(&data).unwrap();
+                                        self.pos_to_read += buffer.position() as i64;
                                     }
                                 }
+                            }
+                            if self.pos_to_read - self.read_request.offset()
+                                > self.read_request.length()
+                            {
+                                return Err(AlluxioException::UnexpectedAlluxioException {
+                                    message: "read tooooooo much".to_string(),
+                                });
                             }
                             return Ok(DefaultDataBuffer { buffer });
                         }
@@ -353,7 +362,7 @@ impl BlockInStream {
     // 此offset非文件的offset，应该是block的offset
     async fn read_chunck(&mut self, off: i64, len: i64) -> Result<(), AlluxioException> {
         // TODO: add more DataReader
-        let data_reader: GrpcDataReader = self.get_data_reader(off, len);
+        let mut data_reader: GrpcDataReader = self.get_data_reader(off, len);
         let data = data_reader.read_chunk().await?;
         self.current_chunk = data;
         Ok(())
