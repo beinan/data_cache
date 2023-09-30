@@ -7,6 +7,7 @@ use std::env;
 pub struct Settings {
     pub debug: bool,
     pub master: String,
+    pub master_rpc_port: i32,
 }
 
 impl Settings {
